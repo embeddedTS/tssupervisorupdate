@@ -135,13 +135,13 @@ const uint32_t magic_key = 0xf092c858;
 #define STATUS_RESET        0x55
 
 struct micro_update_footer_v1 {
-	uint32_t bin_size;
-	uint8_t revision;
-	uint8_t flags;
-	uint8_t misc;
+        uint32_t bin_size;
+        uint16_t revision;
+        uint8_t flags;
+        uint8_t misc;
 	uint16_t model;
-	uint8_t footer_version;
-	uint8_t magic[11];
+        uint8_t footer_version;
+        uint8_t magic[11];
 } __attribute__((packed));
 
 struct micro_update_footer_v0 {
@@ -195,6 +195,67 @@ unsigned char const crc8x_table[] = {
 	0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB,
 	0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3
 };
+
+#define FTR_V1_SZ (22U)
+static int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
+{
+	uint8_t data[FTR_V1_SZ];
+	off_t full_size;
+	int ret;
+
+	full_size = lseek(binfd, 0, SEEK_END);
+	lseek(binfd, (full_size - FTR_V1_SZ), SEEK_SET);
+
+	ret = read(binfd, &data, FTR_V1_SZ);
+	if (ret != FTR_V1_SZ)
+		error(1, 0, "footer read failed!");
+
+	memcpy(&ftr->bin_size, &data[0], 4);
+	memcpy(&ftr->model, &data[4], 2);
+	memcpy(&ftr->revision, &data[6], 2);
+	ftr->flags = data[8];
+	ftr->misc = data[9];
+	ftr->footer_version = data[10];
+	memcpy(&ftr->magic, &data[11], 11);
+
+	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
+		error(1, 1, "Invalid update file");
+
+	if (ftr->bin_size == 0 || ftr->bin_size > 128*1024)
+		error(1, 1, "Bin size is incorrect");
+
+	return 0;
+}
+
+#define FTR_V0_SZ 19
+static int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
+{
+	uint8_t data[FTR_V0_SZ];
+	off_t full_size;
+	int ret;
+
+	full_size = lseek(binfd, 0, SEEK_END);
+	lseek(binfd, (full_size - FTR_V0_SZ), SEEK_SET);
+
+	ret = read(binfd, &data, FTR_V0_SZ);
+	if (ret != FTR_V0_SZ)
+	error(1, 0, "footer read failed!");
+
+	memcpy(&ftr->bin_size, &data[0], 4);
+	ftr->revision = data[4];
+	ftr->flags = data[5];
+	ftr->misc = data[6];
+	ftr->footer_version = data[7];
+	memcpy(&ftr->magic, &data[8], 11);
+
+	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
+		error(1, 1, "Invalid update file");
+
+	if (ftr->bin_size == 0 || ftr->bin_size > 128*1024)
+		error(1, 1, "Bin size is incorrect");
+
+	return 0;
+}
 
 static int super_init(int i2cbus, int i2caddr)
 {
@@ -407,12 +468,7 @@ static int do_renesas_7970_update(int i2cbus, int i2caddr)
 	if (binfd < 0)
 		error(1, errno, "Error opening update file");
 
-	ret = read(binfd, &ftr, sizeof(ftr));
-	if (ret != sizeof(ftr))
-		error(1, 0, "footer read failed!");
-
-	if (strncmp("TS_UC_RA4M2", (char *)&ftr.magic, 11) != 0)
-		error(1, 1, "Invalid update file");
+	micro_update_parse_footer_v0(binfd, &ftr);
 
 	if (ftr.bin_size == 0 || ftr.bin_size > 128*1024)
 		error(1, 1, "Bin size is incorrect");
@@ -426,11 +482,19 @@ static int do_renesas_7970_update(int i2cbus, int i2caddr)
 	}
 
 	if ((revision == ftr.revision) && !force_flag) {
-		printf("Already running microcontroller revision %d, not updating\n", revision);
+		printf("Already running microcontroller revision %d(%d), not updating\n", revision, ftr.revision);
 		return 0;
 	}
 
 	printf("Updating from revision %d to %d\n", revision, ftr.revision);
+	fflush(stdout);
+
+	/*
+	 * Let the message print out.  Some of the flash operations will
+	 * cause the micro to drop some chars if they output while we touch 
+	 * flash 
+	 */
+	usleep(1000*10);
 
 	if (dry_run_flag) {
 		printf("Dry run specified, closing.\n");
@@ -458,7 +522,6 @@ static int do_renesas_7970_update(int i2cbus, int i2caddr)
 	if (buf[0] != STATUS_READY)
 		error(1, 0, "Device failed to report as opened, aborting!");
 
-	printf("\n");
 	/* Write BIN to MCU via I2C */
 	for (i = ftr.bin_size; i; i -= 128) {
 		printf("\r%d/%d", ftr.bin_size - i, ftr.bin_size);
@@ -505,38 +568,6 @@ static int do_renesas_7970_update(int i2cbus, int i2caddr)
 	sleep(1);
 	/* If we're returning at all, something has gone wrong */
 	return 1;
-}
-
-#define FTR_V1_SZ (22U)
-
-static int micro_update_parse_footer(int binfd, struct micro_update_footer_v1 *ftr)
-{
-	uint8_t data[FTR_V1_SZ];
-	off_t full_size;
-	int ret;
-
-	full_size = lseek(binfd, 0, SEEK_END);
-	lseek(binfd, (full_size - FTR_V1_SZ), SEEK_SET);
-
-	ret = read(binfd, &data, FTR_V1_SZ);
-	if (ret != FTR_V1_SZ)
-		error(1, 0, "footer read failed!");
-
-	memcpy(&ftr->bin_size, &data[0], 4);
-	memcpy(&ftr->model, &data[4], 2);
-	memcpy(&ftr->revision, &data[6], 2);
-	ftr->flags = data[8];
-	ftr->misc = data[9];
-	ftr->footer_version = data[10];
-	memcpy(&ftr->magic, &data[11], 11);
-
-	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
-		error(1, 1, "Invalid update file");
-
-	if (ftr->bin_size == 0 || ftr->bin_size > 128*1024)
-		error(1, 1, "Bin size is incorrect");
-
-	return 0;
 }
 
 void flash_print_error(uint8_t status)
@@ -598,7 +629,7 @@ static int do_common_supervisor_update(int i2cbus, int i2caddr)
 	if (binfd < 0)
 		error(1, errno, "Error opening update file");
 
-	micro_update_parse_footer(binfd, &ftr);
+	micro_update_parse_footer_v1(binfd, &ftr);
 
 	if (ftr.model != modelnum) {
 		fprintf(stderr, "This update is for a %04X, not a %04X.\n",
@@ -624,6 +655,15 @@ static int do_common_supervisor_update(int i2cbus, int i2caddr)
 		printf("Dry run specified, closing.\n");
 		return 0;
 	}
+
+	fflush(stdout);
+
+	/*
+	 * Let the message print out.  Some of the flash operations will
+	 * cause the micro to drop some chars if they output while we touch 
+	 * flash 
+	 */
+	usleep(1000*10);
 
 	/* Write magic key and length/location information */
 	if (spokestream16(i2cfd, i2caddr, SUPER_FL_MAGIC_KEY0, (uint16_t *)&magic_key, 4) < 0)
@@ -783,7 +823,7 @@ int main(int argc, char *argv[])
 	dry_run_flag = 0;
 	force_flag = 0;
 	info_flag = 0;
-	*updatefile = 0;
+	updatefile = 0;
 
 	if (argc < 2) {
 		usage(argv);
@@ -837,9 +877,14 @@ int main(int argc, char *argv[])
 	}
 
 	dt_modelname = get_dt_model();
-	if (strcmp(dt_modelname, "TS-7970") == 0) {
+
+	if (strncmp(dt_modelname, "TS-7970", strlen("TS-7970")) == 0) {
+		if (opt_bus == -1)
+			opt_bus = 0;
+		if (opt_chip_addr == -1)
+			opt_chip_addr = 0x10;
 		return do_renesas_7970_update(opt_bus, opt_chip_addr);
-	} else if (strcmp(dt_modelname, "TS-7250-V3") == 0) {
+	} else if (strncmp(dt_modelname, "TS-7250-V3", strlen("TS-7250-V3")) == 0) {
 		if (opt_bus == -1)
 			opt_bus = 0;
 		if (opt_chip_addr == -1)
