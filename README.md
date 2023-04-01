@@ -38,7 +38,7 @@ This update will automatically reboot the system, so should be done from a read 
 
     wget https://files.embeddedts.com/ts-arm-sbc/ts-7970-linux/supervisory-firmware/ts7970-micro-update-latest.bin
     # Check if update is needed:
-    tssupervisorupdate --dry-run --update ts7250v3-supervisor-update-latest.bin
+    tssupervisorupdate --dry-run --update ts7970-micro-update-latest.bin
     # Install update, immediately reboots after to apply the update
-    tssupervisorupdate --update ts7250v3-supervisor-update-latest.bin
+    tssupervisorupdate --update ts7970-micro-update-latest.bin
 
