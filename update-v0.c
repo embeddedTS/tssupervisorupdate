@@ -10,35 +10,8 @@
 
 #include "micro.h"
 #include "crc8.h"
+#include "update-shared.h"
 #include "update-v0.h"
-
-#define TS7970_I2C_ADDR 0x10
-
-/* Read-back status values */
-/* Default value of status, closed */
-#define STATUS_CLOSED 0x00
-/* Once the flashwrite process is set up, but no data written */
-#define STATUS_READY 0xAA
-/* Flashwrite process has seen full length of data written and is considered done */
-#define STATUS_DONE 0x01
-/* Flashwrite is in process, meaning SOME data has been written, but not the full length */
-#define STATUS_IN_PROC 0x02
-/* A CRC error occurred at ANY point during data write. Note that this status
- * is not set if CRC fails for open process, the system simply does not open
- */
-#define STATUS_CRC_ERR 0x03
-/* An error occurred while trying to erase the actual flash */
-#define STATUS_ERASE_ERR 0x04
-/* An error occurred at ANY point during data write. */
-#define STATUS_WRITE_ERR 0x05
-/* Erase was successful, but, the area to be written was not blank */
-#define STATUS_NOT_BLANK 0x06
-/* A BSP error opening and closing flash. Most errors are buggy code, configurations, or unrecoverable */
-#define STATUS_OPEN_ERR 0x07
-/* Wait state while processing a write */
-#define STATUS_WAIT 0x08
-/* Request the uC reboot at any time after its open status */
-#define STATUS_RESET 0x55
 
 struct micro_update_footer_v0 {
 	uint32_t bin_size;
@@ -237,8 +210,10 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 			while (buf[0] == STATUS_WAIT)
 				read(i2cfd, buf, 1);
 
-			if ((buf[0] != STATUS_IN_PROC) && (buf[0] != STATUS_DONE))
-				error(1, 0, "Device reported error status 0x%02X\n", buf[0]);
+			if ((buf[0] != STATUS_IN_PROC) && (buf[0] != STATUS_DONE)) {
+				flash_print_error(buf[0]);
+				return 1;
+			}
 		}
 	}
 	printf("\n");

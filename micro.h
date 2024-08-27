@@ -21,8 +21,3 @@ typedef struct board {
 	update_meth_t method;
 } board_t;
 
-/*
- * The updates themselves are encrypted/signed, but the below key is just used to
- * prevent unintentional writes to i2c causing writes to the flash.
- */
-static const uint32_t magic_key = 0xf092c858;

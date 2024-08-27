@@ -10,6 +10,7 @@
 
 #include "micro.h"
 #include "crc8.h"
+#include "update-shared.h"
 #include "update-v1.h"
 
 #define SUPER_MODEL 0
@@ -31,32 +32,6 @@
 #define SUPER_FL_FLASH_CMD 65098 // 0xFE4A
 #define SUPER_FL_FLASH_STS 65099 // 0xFE4B
 #define SUPER_FL_BLOCK_DATA_LEN 64
-
-/* Read-back status values */
-/* Default value of status, closed */
-#define STATUS_CLOSED 0x00
-/* Once the flashwrite process is set up, but no data written */
-#define STATUS_READY 0xAA
-/* Flashwrite process has seen full length of data written and is considered done */
-#define STATUS_DONE 0x01
-/* Flashwrite is in process, meaning SOME data has been written, but not the full length */
-#define STATUS_IN_PROC 0x02
-/* A CRC error occurred at ANY point during data write. Note that this status
- * is not set if CRC fails for open process, the system simply does not open
- */
-#define STATUS_CRC_ERR 0x03
-/* An error occurred while trying to erase the actual flash */
-#define STATUS_ERASE_ERR 0x04
-/* An error occurred at ANY point during data write. */
-#define STATUS_WRITE_ERR 0x05
-/* Erase was successful, but, the area to be written was not blank */
-#define STATUS_NOT_BLANK 0x06
-/* A BSP error opening and closing flash. Most errors are buggy code, configurations, or unrecoverable */
-#define STATUS_OPEN_ERR 0x07
-/* Wait state while processing a write */
-#define STATUS_WAIT 0x08
-/* Request the uC reboot at any time after its open status */
-#define STATUS_RESET 0x55
 
 enum super_flash_status {
 	SUPER_UPDATE_ON_REBOOT = (1 << 8), /* Set when the APPLY_REBOOT command is issued */
@@ -105,29 +80,7 @@ struct micro_update_footer_v1 {
 	uint8_t magic[11];
 } __attribute__((packed));
 
-void flash_print_error(uint8_t status)
-{
-	switch (status) {
-	case STATUS_OPEN_ERR:
-		fprintf(stderr, "Flash failed to open!\n");
-		break;
-	case STATUS_NOT_BLANK:
-		fprintf(stderr, "Flash not blank\n");
-		break;
-	case STATUS_ERASE_ERR:
-		fprintf(stderr, "Flash failed to erase!\n");
-		break;
-	case STATUS_WRITE_ERR:
-		fprintf(stderr, "Flash failed to write!\n");
-		break;
-	case STATUS_CRC_ERR:
-		fprintf(stderr, "Flash received bad data CRC!\n");
-		break;
-	default:
-		fprintf(stderr, "Unknown flash failure\n");
-		break;
-	}
-}
+
 
 #define FTR_V1_SZ (22U)
 int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
