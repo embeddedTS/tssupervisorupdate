@@ -16,29 +16,29 @@
 
 /* Read-back status values */
 /* Default value of status, closed */
-#define STATUS_CLOSED       0x00
+#define STATUS_CLOSED 0x00
 /* Once the flashwrite process is set up, but no data written */
-#define STATUS_READY        0xAA
+#define STATUS_READY 0xAA
 /* Flashwrite process has seen full length of data written and is considered done */
-#define STATUS_DONE         0x01
+#define STATUS_DONE 0x01
 /* Flashwrite is in process, meaning SOME data has been written, but not the full length */
-#define STATUS_IN_PROC      0x02
+#define STATUS_IN_PROC 0x02
 /* A CRC error occurred at ANY point during data write. Note that this status
  * is not set if CRC fails for open process, the system simply does not open
  */
-#define STATUS_CRC_ERR      0x03
+#define STATUS_CRC_ERR 0x03
 /* An error occurred while trying to erase the actual flash */
-#define STATUS_ERASE_ERR    0x04
+#define STATUS_ERASE_ERR 0x04
 /* An error occurred at ANY point during data write. */
-#define STATUS_WRITE_ERR    0x05
+#define STATUS_WRITE_ERR 0x05
 /* Erase was successful, but, the area to be written was not blank */
-#define STATUS_NOT_BLANK    0x06
+#define STATUS_NOT_BLANK 0x06
 /* A BSP error opening and closing flash. Most errors are buggy code, configurations, or unrecoverable */
-#define STATUS_OPEN_ERR	    0x07
+#define STATUS_OPEN_ERR 0x07
 /* Wait state while processing a write */
-#define STATUS_WAIT         0x08
+#define STATUS_WAIT 0x08
 /* Request the uC reboot at any time after its open status */
-#define STATUS_RESET        0x55
+#define STATUS_RESET 0x55
 
 struct micro_update_footer_v0 {
 	uint32_t bin_size;
@@ -61,7 +61,7 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 
 	ret = read(binfd, &data, FTR_V0_SZ);
 	if (ret != FTR_V0_SZ)
-	error(1, 0, "footer read failed!");
+		error(1, 0, "footer read failed!");
 
 	memcpy(&ftr->bin_size, &data[0], 4);
 	ftr->revision = data[4];
@@ -73,7 +73,7 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
 		error(1, 1, "Invalid update file");
 
-	if (ftr->bin_size == 0 || ftr->bin_size > 128*1024)
+	if (ftr->bin_size == 0 || ftr->bin_size > 128 * 1024)
 		error(1, 1, "Bin size is incorrect");
 
 	return 0;
@@ -110,7 +110,7 @@ int do_v0_micro_print_info(board_t *board, int i2cfd)
 {
 	int revision;
 	int ret;
-	
+
 	ret = do_v0_micro_get_rev(board, i2cfd, &revision);
 	if (ret != 0) {
 		return ret;
@@ -174,7 +174,7 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 
 	micro_update_parse_footer_v0(binfd, &ftr);
 
-	if (ftr.bin_size == 0 || ftr.bin_size > 128*1024)
+	if (ftr.bin_size == 0 || ftr.bin_size > 128 * 1024)
 		error(1, 1, "Bin size is incorrect");
 
 	/* Check file is 128-byte aligned */
@@ -188,7 +188,7 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	 * cause the micro to drop some chars if they output while we touch 
 	 * flash 
 	 */
-	usleep(1000*10);
+	usleep(1000 * 10);
 
 	lseek(binfd, 0, SEEK_SET);
 
@@ -224,7 +224,8 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 			buf[128] = crc8(buf, 128);
 			ret = v0_stream_write(i2cfd, board->i2c_chip, buf, 129);
 			if (ret)
-				error(1, errno, "Failed to write BIN to I2C @ %d (did uC I2C timeout?)", ftr.bin_size - i);
+				error(1, errno, "Failed to write BIN to I2C @ %d (did uC I2C timeout?)",
+				      ftr.bin_size - i);
 
 			/*
 			 * There is some unknown amount of time for a write to complete, its based
