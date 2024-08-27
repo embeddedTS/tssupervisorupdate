@@ -80,8 +80,6 @@ struct micro_update_footer_v1 {
 	uint8_t magic[11];
 } __attribute__((packed));
 
-
-
 #define FTR_V1_SZ (22U)
 int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 {
@@ -112,6 +110,7 @@ int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 
 	return 0;
 }
+
 int do_v1_micro_get_rev(board_t *board, int i2cfd, int *revision)
 {
 	*revision = speek16(i2cfd, board->i2c_chip, SUPER_REV_INFO);
@@ -166,7 +165,6 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	int binfd;
 	int ret;
 	int i;
-	int retries = 10;
 
 	features0 = speek16(i2cfd, board->i2c_chip, SUPER_FEATURES0);
 	if ((features0 & SUPER_FEAT_FWUPD) == 0) {
@@ -208,14 +206,7 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_SZ0, (uint16_t *)&bin_size, 4) < 0)
 		error(1, errno, "Failed to bin length");
 
-retry:
 	lseek(binfd, 0, SEEK_SET);
-
-	if (retries == 0) {
-		fprintf(stderr, "Failed to update microcontroller, contact support\n");
-		return 1;
-	}
-	retries--;
 
 	/* If flash is already opened from a previous action, close it to reset the flash state. */
 	status = speek16(i2cfd, board->i2c_chip, SUPER_FL_FLASH_STS) & 0xff;
@@ -224,7 +215,7 @@ retry:
 		status = speek16(i2cfd, board->i2c_chip, SUPER_FL_FLASH_STS) & 0xff;
 		if (status != STATUS_CLOSED) {
 			fprintf(stderr, "Couldn't re-close flash!\n");
-			goto retry;
+			return 1;
 		}
 	}
 
@@ -241,7 +232,7 @@ retry:
 		fprintf(stderr, "Failed to open flash!\n");
 		if (status != STATUS_CLOSED)
 			flash_print_error(status);
-		goto retry;
+		return 1;
 	}
 
 	/* Write BIN to MCU via I2C */
@@ -251,23 +242,14 @@ retry:
 		ret = read(binfd, buf, 128);
 		if (ret < 0) {
 			fprintf(stderr, "Error: %s, Error reading from BIN @ %d", strerror(errno), bin_size - i);
-			goto retry;
+			return 1;
 		} else if (ret < 128) {
 			fprintf(stderr, "Error: short read from  bin, got %d instead of 128\n", ret);
-			goto retry;
+			return 1;
 		} else {
 			crc = (uint16_t)crc8((uint8_t *)buf, 128);
 
-			/*
-			 * Prefer streaming interface, but fall back to individual pokes if
-			 * larger writes are failing (might be interrupted?)
-			 */
-			if (retries > 5)
-				spokestream16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA, buf, 128);
-			else
-				for (int x = 0; x < 64; x++)
-					spoke16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA + x, buf[x]);
-
+			spokestream16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA, buf, 128);
 			spoke16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_CRC, crc);
 			spoke16(i2cfd, board->i2c_chip, SUPER_FL_FLASH_CMD, SUPER_WRITE_BLOCK);
 
@@ -286,7 +268,7 @@ retry:
 			/* Once wait state is complete, check status to ensure no errors */
 			if (status != STATUS_IN_PROC && status != STATUS_DONE) {
 				flash_print_error(status);
-				goto retry;
+				return 1;
 			}
 		}
 	}
@@ -297,8 +279,8 @@ retry:
 	 */
 	if (status != STATUS_DONE) {
 		printf("\r                            ");
-		fprintf(stderr, "\rError: Microcontroller not DONE, retrying\n");
-		goto retry;
+		fprintf(stderr, "\rError: Updated failed\n");
+		return 1;
 	} else {
 		printf("\r                            ");
 		printf("\rWrote %d byte supervisor update\n", bin_size);
