@@ -38,6 +38,13 @@ board_t boards[] = {
 		.modelnum = 0x7250,
 		.method = UPDATE_V1,
 	},
+	{
+		.compatible = "technologic,ts9370",
+		.modelnum = 0x9370,
+		.i2c_bus = 0,
+		.i2c_chip = 0x54,
+		.method = UPDATE_V1,
+	},
 };
 
 board_t *get_board()
