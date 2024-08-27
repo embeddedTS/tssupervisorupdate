@@ -173,11 +173,10 @@ int do_v1_micro_print_info(board_t *board, int i2cfd)
 
 	modelnum = speek16(i2cfd, board->i2c_chip, SUPER_MODEL);
 	revision = speek16(i2cfd, board->i2c_chip, SUPER_REV_INFO);
-	revision &= 0x7fff;
 
 	printf("modelnum=0x%04X\n", modelnum);
-	printf("revision=%d\n", revision);
-	printf("dirty=%d\n", !!(revision & 0x8000));
+	printf("revision=%d\n", revision & 0x7fff);
+	printf("dirty=%d\n", !!(revision & (1 << 15)));
 	return 0;
 }
 
