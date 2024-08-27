@@ -218,6 +218,7 @@ int main(int argc, char *argv[])
 
 		if ((update_revision <= micro_revision) && !force_flag) {
 			printf("Already at revision %d\n", update_revision);
+			return 0;
 		}
 
 		printf("Updating from revision %d to %d\n", micro_revision, update_revision);
