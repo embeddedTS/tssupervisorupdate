@@ -14,11 +14,11 @@ typedef enum update_method {
 } update_meth_t;
 
 typedef struct board {
-    const char *compatible;
-    uint16_t modelnum;
-    int i2c_bus;
-    int i2c_chip;
-    update_meth_t method;
+	const char *compatible;
+	uint16_t modelnum;
+	int i2c_bus;
+	int i2c_chip;
+	update_meth_t method;
 } board_t;
 
 /*

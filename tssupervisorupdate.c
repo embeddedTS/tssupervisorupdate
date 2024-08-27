@@ -66,7 +66,6 @@ board_t *get_board()
 	return NULL;
 }
 
-
 void usage(char **argv)
 {
 	fprintf(stderr,
@@ -83,8 +82,7 @@ void usage(char **argv)
 		"  -c, --chip-addr        Override default i2c chip address\n"
 		"  -h, --help             This message\n"
 		"\n",
-		argv[0]
-	);
+		argv[0]);
 }
 
 int main(int argc, char *argv[])
@@ -109,16 +107,14 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	static struct option long_options[] = {
-		{ "info", no_argument, NULL, 'i' },
-		{ "force", no_argument, NULL, 'f' },
-		{ "update", required_argument, NULL, 'u' },
-		{ "dry-run", no_argument, NULL, 'n' },
-		{ "chip-addr", required_argument, NULL, 'c' },
-		{ "bus", required_argument, NULL, 'b' },
-		{ "help", no_argument, NULL, 'h' },
-		{0, 0, 0, 0}
-	};
+	static struct option long_options[] = { { "info", no_argument, NULL, 'i' },
+						{ "force", no_argument, NULL, 'f' },
+						{ "update", required_argument, NULL, 'u' },
+						{ "dry-run", no_argument, NULL, 'n' },
+						{ "chip-addr", required_argument, NULL, 'c' },
+						{ "bus", required_argument, NULL, 'b' },
+						{ "help", no_argument, NULL, 'h' },
+						{ 0, 0, 0, 0 } };
 
 	while ((c = getopt_long(argc, argv, "u:nihfc:b:", long_options, &option_index)) != -1) {
 		switch (c) {
@@ -193,7 +189,7 @@ int main(int argc, char *argv[])
 	}
 
 	i2cfd = micro_init(board->i2c_bus, board->i2c_chip);
-	if (i2cfd < 0){
+	if (i2cfd < 0) {
 		perror("i2c");
 		return 1;
 	}

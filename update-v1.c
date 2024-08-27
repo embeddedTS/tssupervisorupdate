@@ -12,51 +12,51 @@
 #include "crc8.h"
 #include "update-v1.h"
 
-#define SUPER_MODEL         0
-#define SUPER_REV_INFO      1
-#define SUPER_ADC_CHAN_ADV  2
-#define SUPER_FEATURES0     3
-#define SUPER_CMDS          8
-#define SUPER_GEN_FLAGS     16
-#define SUPER_GEN_INPUTS    24
-#define SUPER_ADC_BASE      128
-#define SUPER_TEMPERATURE   159
+#define SUPER_MODEL 0
+#define SUPER_REV_INFO 1
+#define SUPER_ADC_CHAN_ADV 2
+#define SUPER_FEATURES0 3
+#define SUPER_CMDS 8
+#define SUPER_GEN_FLAGS 16
+#define SUPER_GEN_INPUTS 24
+#define SUPER_ADC_BASE 128
+#define SUPER_TEMPERATURE 159
 
-#define SUPER_FL_MAGIC_KEY0  65024 // 0xFE00
-#define SUPER_FL_MAGIC_KEY1  65025 // 0xFE01
-#define SUPER_FL_SZ0         65030 // 0xFE06
-#define SUPER_FL_SZ1         65031 // 0xFE07
-#define SUPER_FL_BLOCK_DATA  65033 // 0xFE09 /* 128 bytes long, or 64 16-bit registers */
-#define SUPER_FL_BLOCK_CRC   65097 // 0xFE49
-#define SUPER_FL_FLASH_CMD   65098 // 0xFE4A
-#define SUPER_FL_FLASH_STS   65099 // 0xFE4B
+#define SUPER_FL_MAGIC_KEY0 65024 // 0xFE00
+#define SUPER_FL_MAGIC_KEY1 65025 // 0xFE01
+#define SUPER_FL_SZ0 65030 // 0xFE06
+#define SUPER_FL_SZ1 65031 // 0xFE07
+#define SUPER_FL_BLOCK_DATA 65033 // 0xFE09 /* 128 bytes long, or 64 16-bit registers */
+#define SUPER_FL_BLOCK_CRC 65097 // 0xFE49
+#define SUPER_FL_FLASH_CMD 65098 // 0xFE4A
+#define SUPER_FL_FLASH_STS 65099 // 0xFE4B
 #define SUPER_FL_BLOCK_DATA_LEN 64
 
 /* Read-back status values */
 /* Default value of status, closed */
-#define STATUS_CLOSED       0x00
+#define STATUS_CLOSED 0x00
 /* Once the flashwrite process is set up, but no data written */
-#define STATUS_READY        0xAA
+#define STATUS_READY 0xAA
 /* Flashwrite process has seen full length of data written and is considered done */
-#define STATUS_DONE         0x01
+#define STATUS_DONE 0x01
 /* Flashwrite is in process, meaning SOME data has been written, but not the full length */
-#define STATUS_IN_PROC      0x02
+#define STATUS_IN_PROC 0x02
 /* A CRC error occurred at ANY point during data write. Note that this status
  * is not set if CRC fails for open process, the system simply does not open
  */
-#define STATUS_CRC_ERR      0x03
+#define STATUS_CRC_ERR 0x03
 /* An error occurred while trying to erase the actual flash */
-#define STATUS_ERASE_ERR    0x04
+#define STATUS_ERASE_ERR 0x04
 /* An error occurred at ANY point during data write. */
-#define STATUS_WRITE_ERR    0x05
+#define STATUS_WRITE_ERR 0x05
 /* Erase was successful, but, the area to be written was not blank */
-#define STATUS_NOT_BLANK    0x06
+#define STATUS_NOT_BLANK 0x06
 /* A BSP error opening and closing flash. Most errors are buggy code, configurations, or unrecoverable */
-#define STATUS_OPEN_ERR	    0x07
+#define STATUS_OPEN_ERR 0x07
 /* Wait state while processing a write */
-#define STATUS_WAIT         0x08
+#define STATUS_WAIT 0x08
 /* Request the uC reboot at any time after its open status */
-#define STATUS_RESET        0x55
+#define STATUS_RESET 0x55
 
 enum super_flash_status {
 	SUPER_UPDATE_ON_REBOOT = (1 << 8), /* Set when the APPLY_REBOOT command is issued */
@@ -96,13 +96,13 @@ enum super_features_t {
 };
 
 struct micro_update_footer_v1 {
-        uint32_t bin_size;
-        uint16_t revision;
-        uint8_t flags;
-        uint8_t misc;
+	uint32_t bin_size;
+	uint16_t revision;
+	uint8_t flags;
+	uint8_t misc;
 	uint16_t model;
-        uint8_t footer_version;
-        uint8_t magic[11];
+	uint8_t footer_version;
+	uint8_t magic[11];
 } __attribute__((packed));
 
 void flash_print_error(uint8_t status)
@@ -154,7 +154,7 @@ int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
 		error(1, 1, "Invalid update file");
 
-	if (ftr->bin_size == 0 || ftr->bin_size > 128*1024)
+	if (ftr->bin_size == 0 || ftr->bin_size > 128 * 1024)
 		error(1, 1, "Bin size is incorrect");
 
 	return 0;
@@ -163,14 +163,14 @@ int do_v1_micro_get_rev(board_t *board, int i2cfd, int *revision)
 {
 	*revision = speek16(i2cfd, board->i2c_chip, SUPER_REV_INFO);
 	*revision &= 0x7fff;
-	
+
 	return 0;
 }
 
 int do_v1_micro_print_info(board_t *board, int i2cfd)
 {
 	uint16_t revision, modelnum;
-	
+
 	modelnum = speek16(i2cfd, board->i2c_chip, SUPER_MODEL);
 	revision = speek16(i2cfd, board->i2c_chip, SUPER_REV_INFO);
 	revision &= 0x7fff;
@@ -190,7 +190,7 @@ int do_v1_micro_get_file_rev(__attribute__((unused)) board_t *board, int *revisi
 	binfd = open(update_path, O_RDONLY | O_RSYNC);
 	if (binfd < 0)
 		error(1, errno, "Error opening update file");
-	
+
 	ret = micro_update_parse_footer_v1(binfd, &ftr);
 	if (ret != 0)
 		return ret;
@@ -229,8 +229,7 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	micro_update_parse_footer_v1(binfd, &ftr);
 
 	if (ftr.model != board->modelnum) {
-		fprintf(stderr, "This update is for a %04X, not a %04X.\n",
-			ftr.model, board->modelnum);
+		fprintf(stderr, "This update is for a %04X, not a %04X.\n", ftr.model, board->modelnum);
 		return 1;
 	}
 
@@ -248,7 +247,7 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	 * cause the micro to drop some chars if they output while we touch 
 	 * flash 
 	 */
-	usleep(1000*10);
+	usleep(1000 * 10);
 
 	/* Write magic key and length/location information */
 	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_MAGIC_KEY0, (uint16_t *)&magic_key, 4) < 0)
@@ -305,14 +304,14 @@ retry:
 			fprintf(stderr, "Error: short read from  bin, got %d instead of 128\n", ret);
 			goto retry;
 		} else {
-			crc = (uint16_t) crc8((uint8_t *)buf, 128);
+			crc = (uint16_t)crc8((uint8_t *)buf, 128);
 
 			/*
 			 * Prefer streaming interface, but fall back to individual pokes if
 			 * larger writes are failing (might be interrupted?)
 			 */
 			if (retries > 5)
-				spokestream16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA,  buf, 128);
+				spokestream16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA, buf, 128);
 			else
 				for (int x = 0; x < 64; x++)
 					spoke16(i2cfd, board->i2c_chip, SUPER_FL_BLOCK_DATA + x, buf[x]);
@@ -333,8 +332,7 @@ retry:
 			} while (status == STATUS_WAIT);
 
 			/* Once wait state is complete, check status to ensure no errors */
-			if (status != STATUS_IN_PROC &&
-			    status != STATUS_DONE) {
+			if (status != STATUS_IN_PROC && status != STATUS_DONE) {
 				flash_print_error(status);
 				goto retry;
 			}

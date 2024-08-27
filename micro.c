@@ -38,7 +38,6 @@ int micro_init(int i2cbus, int i2caddr)
 	return fd;
 }
 
-
 void spoke16(int i2cfd, int i2caddr, uint16_t addr, uint16_t data)
 {
 	int ret;
@@ -69,15 +68,15 @@ int speekstream16(int i2cfd, int i2caddr, uint16_t addr, uint16_t *data, int siz
 
 	msgs[0].addr = i2caddr;
 	msgs[0].flags = 0;
-	msgs[0].len	= 2;
-	msgs[0].buf	= (uint8_t *)&addr;
+	msgs[0].len = 2;
+	msgs[0].buf = (uint8_t *)&addr;
 
 	msgs[1].addr = i2caddr;
 	msgs[1].flags = I2C_M_RD;
-	msgs[1].len	= size;
-	msgs[1].buf	= (uint8_t *)data;
+	msgs[1].len = size;
+	msgs[1].buf = (uint8_t *)data;
 
-	packets.msgs  = msgs;
+	packets.msgs = msgs;
 	packets.nmsgs = 2;
 
 	if (ioctl(i2cfd, I2C_RDWR, &packets) < 0) {
@@ -104,10 +103,10 @@ int spokestream16(int i2cfd, int i2caddr, uint16_t addr, uint16_t *data, int siz
 
 	msg.addr = i2caddr;
 	msg.flags = 0;
-	msg.len	= 2 + size;
-	msg.buf	= outdata;
+	msg.len = 2 + size;
+	msg.buf = outdata;
 
-	packets.msgs  = &msg;
+	packets.msgs = &msg;
 	packets.nmsgs = 1;
 
 	if (ioctl(i2cfd, I2C_RDWR, &packets) < 0)
@@ -124,10 +123,10 @@ int v0_stream_read(int twifd, int i2caddr, uint8_t *data, int bytes)
 retry:
 	msg.addr = i2caddr;
 	msg.flags = I2C_M_RD;
-	msg.len	= bytes;
-	msg.buf	= data;
+	msg.len = bytes;
+	msg.buf = data;
 
-	packets.msgs  = &msg;
+	packets.msgs = &msg;
 	packets.nmsgs = 1;
 
 	if (ioctl(twifd, I2C_RDWR, &packets) < 0) {
@@ -146,10 +145,10 @@ int v0_stream_write(int twifd, int i2caddr, uint8_t *data, int bytes)
 
 	msg.addr = i2caddr;
 	msg.flags = 0;
-	msg.len	= bytes;
-	msg.buf	= data;
+	msg.len = bytes;
+	msg.buf = data;
 
-	packets.msgs  = &msg;
+	packets.msgs = &msg;
 	packets.nmsgs = 1;
 
 	if (ioctl(twifd, I2C_RDWR, &packets) < 0) {
