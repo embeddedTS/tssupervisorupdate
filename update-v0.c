@@ -11,7 +11,6 @@
 #include "micro.h"
 #include "crc8.h"
 #include "update-shared.h"
-#include "update-v0.h"
 
 struct micro_update_footer_v0 {
 	uint32_t bin_size;
@@ -33,9 +32,20 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 	lseek(binfd, (full_size - FTR_V0_SZ), SEEK_SET);
 
 	ret = read(binfd, &data, FTR_V0_SZ);
-	if (ret != FTR_V0_SZ)
-		error(1, 0, "footer read failed!");
+	if (ret < 0) {
+		perror("Reading footer failed");
+		return -1;
+	}
+	if (ret != FTR_V0_SZ) {
+		fprintf(stderr, "Did not read correct footer size\n");
+		return -1;
+	}
 
+	/* Note:
+	 * This is an intentional choice as it was noted that different compilers
+	 * appear to do different things when attempting to memcpy the entire
+	 * footer directly overtop the struct, even though it is packed.
+	 */
 	memcpy(&ftr->bin_size, &data[0], 4);
 	ftr->revision = data[4];
 	ftr->flags = data[5];
@@ -43,11 +53,25 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 	ftr->footer_version = data[7];
 	memcpy(&ftr->magic, &data[8], 11);
 
-	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
-		error(1, 1, "Invalid update file");
+	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0) {
+		fprintf(stderr, "Invalid update file\n");
+		return -1;
+	}
 
-	if (ftr->bin_size == 0 || ftr->bin_size > 128 * 1024)
-		error(1, 1, "Bin size is incorrect");
+	/* Ensure that the bin_size specified by the footer both matches the
+	 * actual size of the binary as well as it not being more than 128 kbyte
+	 * (which is the max size an update can be on this platform).
+	 */
+	if (ftr->bin_size != (full_size - FTR_V0_SZ) || ftr->bin_size > 128 * 1024) {
+		fprintf(stderr, "Bin size is incorrect\n");
+		return -1;
+	}
+
+	/* Check file is 128-byte aligned */
+	if (ftr->bin_size & 0x7F) {
+		fprintf(stderr, "Update binary is not 128-byte aligned.\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -63,16 +87,10 @@ struct open_header {
 int do_v0_micro_get_rev(board_t *board, int i2cfd, int *revision)
 {
 	uint8_t buf[32];
-	int r;
 
-	/*
-	 * First get the uC rev, attempting to send the MAC address data
-	 * to an older uC rev will cause an erroneous sleep.
-	 */
-	r = v0_stream_read(i2cfd, board->i2c_chip, buf, 32);
-	if (r) {
-		printf("i2c read failed!\n");
-		exit(1);
+	if (v0_stream_read(i2cfd, board->i2c_chip, buf, 32) < 0) {
+		fprintf(stderr, "Unable to get revision\n");
+		return -1;
 	}
 	*revision = (buf[30] << 8) | buf[31];
 
@@ -82,38 +100,42 @@ int do_v0_micro_get_rev(board_t *board, int i2cfd, int *revision)
 int do_v0_micro_print_info(board_t *board, int i2cfd)
 {
 	int revision;
-	int ret;
 
-	ret = do_v0_micro_get_rev(board, i2cfd, &revision);
-	if (ret != 0) {
-		return ret;
-	}
+	if (do_v0_micro_get_rev(board, i2cfd, &revision) < 0)
+		return -1;
 
 	printf("revision=%d\n", revision);
 	return 0;
 }
 
-int do_v0_micro_get_file_rev(__attribute__((unused)) board_t *board, int *revision, char *update_path)
+int do_v0_micro_get_file_rev(board_t *board, int *revision, char *update_path)
 {
 	struct micro_update_footer_v0 ftr;
 	int binfd;
-	int ret;
+	int ret = 0;
+
+	/* Unused */
+	(void)board;
 
 	binfd = open(update_path, O_RDONLY | O_RSYNC);
-	if (binfd < 0)
-		error(1, errno, "Error opening update file");
+	if (binfd < 0) {
+		perror("Unable to open update file");
+		ret = -1;
+		goto out;
+	}
 
-	ret = micro_update_parse_footer_v0(binfd, &ftr);
-	if (ret != 0)
-		return ret;
+	if (micro_update_parse_footer_v0(binfd, &ftr) < 0)
+		ret = -1;
 
-	ret = close(binfd);
-	if (ret == -1)
-		return ret;
+	if (close(binfd) < 0) {
+		perror("Unable to close update file");
+		ret = -1;
+	}
 
 	*revision = ftr.revision;
 
-	return 0;
+out:
+	return ret;
 }
 
 /*
@@ -126,33 +148,17 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 {
 	struct micro_update_footer_v0 ftr;
 	struct open_header hdr;
-	int revision;
 	uint8_t buf[129];
 	int binfd;
 	int ret;
 	int i;
-
-	ret = do_v0_micro_get_rev(board, i2cfd, &revision);
-	if (ret != 0)
-		return ret;
-
-	if (revision < 7) {
-		fprintf(stderr, "The microcontroller must be rev 7 or later to support updates.\n");
-		return 0;
-	}
+	int retry_count;
 
 	binfd = open(update_path, O_RDONLY | O_RSYNC);
 	if (binfd < 0)
 		error(1, errno, "Error opening update file");
 
 	micro_update_parse_footer_v0(binfd, &ftr);
-
-	if (ftr.bin_size == 0 || ftr.bin_size > 128 * 1024)
-		error(1, 1, "Bin size is incorrect");
-
-	/* Check file is 128-byte aligned */
-	if (ftr.bin_size & 0x7F)
-		error(1, 0, "Binary file must be 128-byte aligned!");
 
 	fflush(stdout);
 
@@ -180,7 +186,9 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	 */
 	usleep(1000000);
 
-	v0_stream_read(i2cfd, board->i2c_chip, buf, 1);
+	if (v0_stream_read(i2cfd, board->i2c_chip, buf, 1) < 0)
+		error(1, 0, "Failed to read device state, aborting!");
+
 	if (buf[0] != STATUS_READY)
 		error(1, 0, "Device failed to report as opened, aborting!");
 
@@ -196,30 +204,36 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 		} else {
 			buf[128] = crc8(buf, 128);
 			ret = v0_stream_write(i2cfd, board->i2c_chip, buf, 129);
-			if (ret)
+			if (ret < 0)
 				error(1, errno, "Failed to write BIN to I2C @ %d (did uC I2C timeout?)",
 				      ftr.bin_size - i);
 
-			/*
-			 * There is some unknown amount of time for a write to complete, its based
-			 * on the current uC clocks and all of that, but 10 microseconds should be
-			 * enough in most cases
+			/* There is some unknown amount of time for a write to
+			 * complete, its based on the current uC and flash controller
+			 * clocks, but 2 milliseconds should be enough in most cases.
+			 * Most of the time is taken up by the decryption of the
+			 * data block. However, the actual flash write is a non-zero
+			 * time too. During which interrupts are disabled for flash
+			 * safety. The timeout helps ensure the process completes
+			 * before we start polling for state.
 			 */
-			usleep(10);
-			read(i2cfd, buf, 1);
-			while (buf[0] == STATUS_WAIT)
-				read(i2cfd, buf, 1);
+			usleep(2000);
+			retry_count = 100;
+			do {
+				usleep(10);
+				v0_stream_read(i2cfd, board->i2c_chip, buf, 1);
+				if (!retry_count--)
+					break;
+			} while (buf[0] == STATUS_WAIT);
 
 			if ((buf[0] != STATUS_IN_PROC) && (buf[0] != STATUS_DONE)) {
 				flash_print_error(buf[0]);
-				return 1;
+				return -1;
 			}
 		}
 	}
 	printf("\n");
 
-	v0_stream_read(i2cfd, board->i2c_chip, buf, 1);
-	buf[1] = STATUS_RESET;
 	if (buf[0] == STATUS_DONE)
 		printf("Update successful, rebooting uC\n");
 	else
@@ -229,8 +243,9 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	fflush(stdout);
 	sleep(1);
 	/* Provoke microcontroller reset */
+	buf[1] = STATUS_RESET;
 	v0_stream_write(i2cfd, board->i2c_chip, &buf[1], 1);
 	sleep(1);
 	/* If we're returning at all, something has gone wrong */
-	return 1;
+	return -1;
 }
