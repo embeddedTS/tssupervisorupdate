@@ -87,6 +87,7 @@ void usage(char **argv)
 		"  -u, --update <file>    Update file.\n"
 		"  -b, --bus              Override default i2c bus\n"
 		"  -c, --chip-addr        Override default i2c chip address\n"
+		"  -v, --version          Print version\n"
 		"  -h, --help             This message\n"
 		"\n",
 		argv[0]);
@@ -120,17 +121,18 @@ int main(int argc, char *argv[])
 						{ "dry-run", no_argument, NULL, 'n' },
 						{ "chip-addr", required_argument, NULL, 'c' },
 						{ "bus", required_argument, NULL, 'b' },
+						{ "version", no_argument, NULL, 'v' },
 						{ "help", no_argument, NULL, 'h' },
 						{ 0, 0, 0, 0 } };
 
-	while ((c = getopt_long(argc, argv, "u:nihfc:b:", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "u:nihfc:b:v", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'f':
 			force_flag = 1;
 			break;
 		case 'h':
 			usage(argv);
-			break;
+			return 0;
 		case 'i':
 			info_flag = 1;
 			break;
@@ -146,6 +148,9 @@ int main(int argc, char *argv[])
 		case 'u':
 			update_path = optarg;
 			break;
+		case 'v':
+			printf("tssupervisorupdate %s\n", TAG);
+			return 0;
 		case '?':
 		default:
 			printf("Unexpected argument \"%s\"\n", optarg);
