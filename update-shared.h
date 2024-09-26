@@ -10,6 +10,7 @@ typedef struct board {
 	uint16_t modelnum;
 	int i2c_bus;
 	int i2c_chip;
+	uint16_t min_rev;
 	update_meth_t method;
 } board_t;
 

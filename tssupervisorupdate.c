@@ -22,6 +22,7 @@ board_t boards[] = {
 		.i2c_bus = 0,
 		.i2c_chip = 0x10,
 		.modelnum = 0x7970,
+		.min_rev = 7,
 		.method = UPDATE_V0,
 	},
 	{
@@ -29,6 +30,7 @@ board_t boards[] = {
 		.i2c_bus = 0,
 		.i2c_chip = 0x10,
 		.modelnum = 0x7970,
+		.min_rev = 7,
 		.method = UPDATE_V0,
 	},
 	{
@@ -196,33 +198,36 @@ int main(int argc, char *argv[])
 		break;
 
 	default:
-		printf("Unsupported update method\n");
-		return -1;
+		fprintf(stderr, "Unsupported update method\n");
+		return 1;
 	}
 
 	i2cfd = micro_init(board->i2c_bus, board->i2c_chip);
 	if (i2cfd < 0) {
-		perror("i2c");
+		perror("Unable to open i2c bus");
 		return 1;
 	}
 
 	if (info_flag) {
-		ret = print_micro_info_func(board, i2cfd);
-		if (ret != 0)
-			return ret;
+		if (print_micro_info_func(board, i2cfd) < 0)
+			return 1;
 	}
 
 	if (update_path) {
-		ret = get_rev_func(board, i2cfd, &micro_revision);
-		if (ret != 0)
-			return ret;
+		if (get_rev_func(board, i2cfd, &micro_revision) < 0)
+			return 1;
 
-		ret = get_update_rev_func(board, &update_revision, update_path);
-		if (ret != 0)
-			return ret;
+		if (get_update_rev_func(board, &update_revision, update_path) < 0)
+			return 1;
+
+		if (micro_revision < board->min_rev) {
+			fprintf(stderr, "Microcontroller must be at least rev %d to support in-field updates.\n",
+				board->min_rev);
+			return 0;
+		}
 
 		if ((update_revision <= micro_revision) && !force_flag) {
-			printf("Already at revision %d\n", update_revision);
+			printf("Already at revision %d, update file is revision %d\n", micro_revision, update_revision);
 			return 0;
 		}
 
