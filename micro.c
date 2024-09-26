@@ -19,9 +19,9 @@ int micro_init(int i2cbus, int i2caddr)
 
 	snprintf(i2c_bus_path, sizeof(i2c_bus_path), "/dev/i2c-%d", i2cbus);
 	fd = open(i2c_bus_path, O_RDWR);
-	if (fd == -1) {
+	if (fd < 0) {
 		perror("Couldn't open i2c device");
-		exit(1);
+		goto out;
 	}
 
 	/*
@@ -30,9 +30,11 @@ int micro_init(int i2cbus, int i2caddr)
 	 */
 	if (ioctl(fd, I2C_SLAVE_FORCE, i2caddr) < 0) {
 		perror("Supervisor did not ACK");
-		exit(1);
+		close(fd);
+		fd = -1;
 	}
 
+out:
 	return fd;
 }
 

@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
@@ -90,8 +89,14 @@ int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 	lseek(binfd, (full_size - FTR_V1_SZ), SEEK_SET);
 
 	ret = read(binfd, &data, FTR_V1_SZ);
-	if (ret != FTR_V1_SZ)
-		error(1, 0, "footer read failed!");
+	if (ret < 0) {
+		perror("Unable to read footer");
+		goto err_out;
+	}
+	if (ret != FTR_V1_SZ) {
+		fprintf(stderr, "Did not read correct footer size\n");
+		goto err_out;
+	}
 
 	memcpy(&ftr->bin_size, &data[0], 4);
 	memcpy(&ftr->model, &data[4], 2);
@@ -101,13 +106,30 @@ int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 	ftr->footer_version = data[10];
 	memcpy(&ftr->magic, &data[11], 11);
 
-	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0)
-		error(1, 1, "Invalid update file");
+	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0) {
+		fprintf(stderr, "Invalid update file\n");
+		goto err_out;
+	}
 
-	if (ftr->bin_size == 0 || ftr->bin_size > 128 * 1024)
-		error(1, 1, "Bin size is incorrect");
+	/* Ensure that the bin_size specified by the footer both matches the
+	 * actual size of the binary as well as it not being more than 128 kbyte
+	 * (which is the max size an update can be on this platform).
+	 */
+	if (ftr->bin_size != (full_size - FTR_V1_SZ) || ftr->bin_size > 128 * 1024) {
+		fprintf(stderr, "Bin size is incorrect\n");
+		goto err_out;
+	}
+
+	/* Check file is 128-byte aligned */
+	if (ftr->bin_size & 0x7F) {
+		fprintf(stderr, "Update binary is not 128-byte aligned.\n");
+		goto err_out;
+	}
 
 	return 0;
+
+err_out:
+	return -1;
 }
 
 int do_v1_micro_get_rev(board_t *board, int i2cfd, int *revision)
@@ -179,8 +201,10 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	int retry_count;
 
 	binfd = open(update_path, O_RDONLY | O_RSYNC);
-	if (binfd < 0)
-		error(1, errno, "Error opening update file");
+	if (binfd < 0) {
+		perror("Error opening update file");
+		return -1;
+	}
 
 	if (speek16(i2cfd, board->i2c_chip, SUPER_FEATURES0, &status) < 0)
 		goto err_out;
@@ -190,7 +214,8 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 		goto err_out;
 	}
 
-	micro_update_parse_footer_v1(binfd, &ftr);
+	if (micro_update_parse_footer_v1(binfd, &ftr) < 0)
+		goto err_out;
 
 	if (ftr.model != board->modelnum) {
 		fprintf(stderr, "This update is for a %04X, not a %04X.\n", ftr.model, board->modelnum);
@@ -199,10 +224,6 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 
 	/* gcc warns this pointer has alignment issues in packed structure. */
 	bin_size = (uint32_t)ftr.bin_size;
-
-	/* Check file is 128-byte aligned */
-	if (bin_size & 0x7F)
-		error(1, 0, "Binary file must be 128-byte aligned!");
 
 	fflush(stdout);
 
@@ -214,11 +235,15 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	usleep(1000 * 10);
 
 	/* Write magic key and length/location information */
-	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_MAGIC_KEY0, (uint16_t *)&magic_key, 4) < 0)
-		error(1, errno, "Failed to write magic key");
+	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_MAGIC_KEY0, (uint16_t *)&magic_key, 4) < 0) {
+		fprintf(stderr, "Failed to write magic key");
+		goto err_out;
+	}
 
-	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_SZ0, (uint16_t *)&bin_size, 4) < 0)
-		error(1, errno, "Failed to write bin length");
+	if (spokestream16(i2cfd, board->i2c_chip, SUPER_FL_SZ0, (uint16_t *)&bin_size, 4) < 0) {
+		fprintf(stderr, "Failed to write bin length");
+		goto err_out;
+	}
 
 	lseek(binfd, 0, SEEK_SET);
 
@@ -249,10 +274,12 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	 */
 	if (spoke16(i2cfd, board->i2c_chip, SUPER_FL_FLASH_CMD, SUPER_OPEN_FLASH) < 0)
 		goto err_out;
+
 	sleep(1);
 
 	if (speek16(i2cfd, board->i2c_chip, SUPER_FL_FLASH_STS, &status) < 0)
 		goto err_out;
+
 	if ((status & 0xff) != STATUS_READY) {
 		fprintf(stderr, "Failed to open flash!\n");
 		if (status != STATUS_CLOSED)
@@ -352,5 +379,5 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 
 err_out:
 	close(binfd);
-	return 1;
+	return -1;
 }

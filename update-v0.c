@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
@@ -34,11 +33,11 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 	ret = read(binfd, &data, FTR_V0_SZ);
 	if (ret < 0) {
 		perror("Reading footer failed");
-		return -1;
+		goto err_out;
 	}
 	if (ret != FTR_V0_SZ) {
 		fprintf(stderr, "Did not read correct footer size\n");
-		return -1;
+		goto err_out;
 	}
 
 	/* Note:
@@ -55,7 +54,7 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 
 	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0) {
 		fprintf(stderr, "Invalid update file\n");
-		return -1;
+		goto err_out;
 	}
 
 	/* Ensure that the bin_size specified by the footer both matches the
@@ -64,16 +63,19 @@ int micro_update_parse_footer_v0(int binfd, struct micro_update_footer_v0 *ftr)
 	 */
 	if (ftr->bin_size != (full_size - FTR_V0_SZ) || ftr->bin_size > 128 * 1024) {
 		fprintf(stderr, "Bin size is incorrect\n");
-		return -1;
+		goto err_out;
 	}
 
 	/* Check file is 128-byte aligned */
 	if (ftr->bin_size & 0x7F) {
 		fprintf(stderr, "Update binary is not 128-byte aligned.\n");
-		return -1;
+		goto err_out;
 	}
 
 	return 0;
+
+err_out:
+	return -1;
 }
 
 /* Pack the struct to be sure it is only as large as we need */
@@ -155,10 +157,13 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	int retry_count;
 
 	binfd = open(update_path, O_RDONLY | O_RSYNC);
-	if (binfd < 0)
-		error(1, errno, "Error opening update file");
+	if (binfd < 0) {
+		perror("Error opening update file");
+		return -1;
+	}
 
-	micro_update_parse_footer_v0(binfd, &ftr);
+	if (micro_update_parse_footer_v0(binfd, &ftr) < 0)
+		goto err_out;
 
 	fflush(stdout);
 
@@ -177,8 +182,10 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	hdr.crc = crc8((uint8_t *)&hdr, (sizeof(struct open_header) - 1));
 
 	/* Write magic key and length/location information */
-	if (v0_stream_write(i2cfd, board->i2c_chip, (uint8_t *)&hdr, 13) < 0)
-		error(1, errno, "Failed to write header to I2C");
+	if (v0_stream_write(i2cfd, board->i2c_chip, (uint8_t *)&hdr, 13) < 0) {
+		fprintf(stderr, "Failed to write header to I2C");
+		goto err_out;
+	}
 
 	/*
 	 * Wait a bit, the flash needs to open, erase, and blank check.
@@ -186,11 +193,15 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	 */
 	usleep(1000000);
 
-	if (v0_stream_read(i2cfd, board->i2c_chip, buf, 1) < 0)
-		error(1, 0, "Failed to read device state, aborting!");
+	if (v0_stream_read(i2cfd, board->i2c_chip, buf, 1) < 0) {
+		fprintf(stderr, "Failed to read device state, aborting!");
+		goto err_out;
+	}
 
-	if (buf[0] != STATUS_READY)
-		error(1, 0, "Device failed to report as opened, aborting!");
+	if (buf[0] != STATUS_READY) {
+		fprintf(stderr, "Device failed to report as opened, aborting!");
+		goto err_out;
+	}
 
 	/* Write BIN to MCU via I2C */
 	for (i = ftr.bin_size; i; i -= 128) {
@@ -198,15 +209,17 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 		fflush(stdout);
 		ret = read(binfd, buf, 128);
 		if (ret < 0) {
-			error(1, errno, "Error reading from BIN @ %d", ftr.bin_size - i);
+			fprintf(stderr, "Error reading from bin file\n");
+			goto err_out;
 		} else if (ret < 128) {
-			error(1, 0, "Short read from BIN! Aborting!");
+			fprintf(stderr, "Short read from bin, got %d, expected 128", ret);
+			goto err_out;
 		} else {
 			buf[128] = crc8(buf, 128);
-			ret = v0_stream_write(i2cfd, board->i2c_chip, buf, 129);
-			if (ret < 0)
-				error(1, errno, "Failed to write BIN to I2C @ %d (did uC I2C timeout?)",
-				      ftr.bin_size - i);
+			if (v0_stream_write(i2cfd, board->i2c_chip, buf, 129) < 0) {
+				fprintf(stderr, "Failed to write block\n");
+				goto err_out;
+			}
 
 			/* There is some unknown amount of time for a write to
 			 * complete, its based on the current uC and flash controller
@@ -228,7 +241,7 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 
 			if ((buf[0] != STATUS_IN_PROC) && (buf[0] != STATUS_DONE)) {
 				flash_print_error(buf[0]);
-				return -1;
+				goto err_out;
 			}
 		}
 	}
@@ -247,5 +260,7 @@ int do_v0_micro_update(board_t *board, int i2cfd, char *update_path)
 	v0_stream_write(i2cfd, board->i2c_chip, &buf[1], 1);
 	sleep(1);
 	/* If we're returning at all, something has gone wrong */
+err_out:
+	close(binfd);
 	return -1;
 }
