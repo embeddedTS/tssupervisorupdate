@@ -170,10 +170,10 @@ int main(int argc, char *argv[])
 	if (opt_bus != -1)
 		board->i2c_bus = opt_bus;
 
-	int (*update_func)(board_t *board, int i2cfd, char *update_path) = NULL;
-	int (*get_rev_func)(board_t *board, int i2cfd, int *revision) = NULL;
-	int (*get_update_rev_func)(board_t *board, int *revision, char *update_path) = NULL;
-	int (*print_micro_info_func)(board_t *board, int i2cfd) = NULL;
+	int (*update_func)(board_t * board, int i2cfd, char *update_path) = NULL;
+	int (*get_rev_func)(board_t * board, int i2cfd, int *revision) = NULL;
+	int (*get_update_rev_func)(board_t * board, int *revision, char *update_path) = NULL;
+	int (*print_micro_info_func)(board_t * board, int i2cfd) = NULL;
 
 	switch (board->method) {
 	case UPDATE_V0:
