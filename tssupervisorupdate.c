@@ -16,8 +16,6 @@
 #include "update-v0.h"
 #include "update-v1.h"
 
-#define TAG "v1.0.2"
-
 board_t boards[] = {
 	{
 		.compatible = "technologic,imx6q-ts7970",
