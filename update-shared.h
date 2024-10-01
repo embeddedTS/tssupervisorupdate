@@ -1,5 +1,19 @@
 #pragma once
 
+typedef enum update_method {
+	UPDATE_V0,
+	UPDATE_V1,
+} update_meth_t;
+
+typedef struct board {
+	const char *compatible;
+	uint16_t modelnum;
+	int i2c_bus;
+	int i2c_chip;
+	uint16_t min_rev;
+	update_meth_t method;
+} board_t;
+
 void flash_print_error(uint8_t status);
 
 /* Read-back status values */
