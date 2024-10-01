@@ -1,4 +1,4 @@
-project('tssupervisorupdate', 'c', version: '1.0.2')
+project('tssupervisorupdate', 'c', version: '1.1.0')
 add_project_arguments('-DTAG="' + meson.project_version() + '"', language: 'c')
 executable('tssupervisorupdate', 
   [
