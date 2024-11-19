@@ -33,6 +33,22 @@ board_t boards[] = {
 		.method = UPDATE_V0,
 	},
 	{
+		.compatible = "nxp,imx6q-ts7970", /* Legacy < 4.9.x kernels */
+		.i2c_bus = 0,
+		.i2c_chip = 0x10,
+		.modelnum = 0x7970,
+		.min_rev = 7,
+		.method = UPDATE_V0,
+	},
+	{
+		.compatible = "nxp,imx6dl-ts7970", /* Legacy < 4.9.x kernels */
+		.i2c_bus = 0,
+		.i2c_chip = 0x10,
+		.modelnum = 0x7970,
+		.min_rev = 7,
+		.method = UPDATE_V0,
+	},
+	{
 		.compatible = "technologic,ts7250v3",
 		.i2c_bus = 0,
 		.i2c_chip = 0x10,
