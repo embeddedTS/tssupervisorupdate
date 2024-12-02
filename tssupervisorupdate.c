@@ -33,7 +33,7 @@ board_t boards[] = {
 		.method = UPDATE_V0,
 	},
 	{
-		.compatible = "nxp,imx6q-ts7970", /* Legacy < 4.9.x kernels */
+		.compatible = "fsl,imx6q-ts7970", /* Legacy < 4.9.x kernels */
 		.i2c_bus = 0,
 		.i2c_chip = 0x10,
 		.modelnum = 0x7970,
@@ -41,7 +41,7 @@ board_t boards[] = {
 		.method = UPDATE_V0,
 	},
 	{
-		.compatible = "nxp,imx6dl-ts7970", /* Legacy < 4.9.x kernels */
+		.compatible = "fsl,imx6dl-ts7970", /* Legacy < 4.9.x kernels */
 		.i2c_bus = 0,
 		.i2c_chip = 0x10,
 		.modelnum = 0x7970,
