@@ -1,4 +1,4 @@
-project('tssupervisorupdate', 'c', version: '1.1.3')
+project('tssupervisorupdate', 'c', version: '1.1.4')
 add_project_arguments('-DTAG="' + meson.project_version() + '"', language: 'c')
 executable('tssupervisorupdate', 
   [
@@ -7,7 +7,7 @@ executable('tssupervisorupdate',
     'update-shared.c',
     'update-v0.c',
     'update-v1.c',
-	'crc8.c',
+    'crc8.c',
   ], 
   install : true
 )
