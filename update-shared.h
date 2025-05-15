@@ -8,6 +8,7 @@ typedef enum update_method {
 typedef struct board {
 	const char *compatible;
 	uint16_t modelnum;
+	uint16_t compatible_id;
 	int i2c_bus;
 	int i2c_chip;
 	uint16_t min_rev;
