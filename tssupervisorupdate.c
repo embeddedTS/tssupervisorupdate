@@ -58,7 +58,7 @@ board_t boards[] = {
 	{
 		.compatible = "technologic,ts4300",
 		.modelnum = 0x4300,
-                .compatible_id = 0x9370,
+		.compatible_id = 0x9370,
 		.i2c_bus = 3,
 		.i2c_chip = 0x54,
 		.method = UPDATE_V1,
@@ -66,7 +66,7 @@ board_t boards[] = {
 	{
 		.compatible = "technologic,ts9370",
 		.modelnum = 0x9370,
-                .compatible_id = 0x9370,
+		.compatible_id = 0x9370,
 		.i2c_bus = 0,
 		.i2c_chip = 0x54,
 		.method = UPDATE_V1,
@@ -74,7 +74,7 @@ board_t boards[] = {
 	{
 		.compatible = "technologic,ts9390",
 		.modelnum = 0x9390,
-                .compatible_id = 0x9370,
+		.compatible_id = 0x9370,
 		.i2c_bus = 3,
 		.i2c_chip = 0x54,
 		.method = UPDATE_V1,

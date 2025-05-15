@@ -153,7 +153,7 @@ int do_v1_micro_print_info(board_t *board, int i2cfd)
 		return -1;
 
 	printf("modelnum=0x%04X\n", modelnum);
-        if (board->compatible_id && (board->compatible_id != modelnum))
+	if (board->compatible_id && (board->compatible_id != modelnum))
 		printf("compatible=0x%04X\n", board->compatible_id);
 	printf("revision=%d\n", revision & 0x7fff);
 	printf("dirty=%d\n", !!(revision & (1 << 15)));
