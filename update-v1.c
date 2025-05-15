@@ -153,6 +153,8 @@ int do_v1_micro_print_info(board_t *board, int i2cfd)
 		return -1;
 
 	printf("modelnum=0x%04X\n", modelnum);
+        if (board->compatible_id && (board->compatible_id != modelnum))
+		printf("compatible=0x%04X\n", board->compatible_id);
 	printf("revision=%d\n", revision & 0x7fff);
 	printf("dirty=%d\n", !!(revision & (1 << 15)));
 	return 0;
@@ -217,7 +219,7 @@ int do_v1_micro_update(board_t *board, int i2cfd, char *update_path)
 	if (micro_update_parse_footer_v1(binfd, &ftr) < 0)
 		goto err_out;
 
-	if (ftr.model != board->modelnum) {
+	if ((ftr.model != board->modelnum) && (ftr.model != board->compatible_id)) {
 		fprintf(stderr, "This update is for a %04X, not a %04X.\n", ftr.model, board->modelnum);
 		goto err_out;
 	}
