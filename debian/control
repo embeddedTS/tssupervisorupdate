@@ -1,0 +1,12 @@
+Source: tssupervisorupdate
+Section: utils
+Priority: optional
+Maintainer: Mark Featherston <mark@embeddedts.com>
+Build-Depends: debhelper-compat (= 13), meson, ninja-build, gcc
+Standards-Version: 4.6.2
+
+Package: tssupervisorupdate
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Supervisor microcontroller firmware updater
+ Utility to update supervisory microcontrollers on embeddedTS products such as the TS-7250-V3 and TS-7970.

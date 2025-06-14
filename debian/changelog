@@ -1,0 +1,46 @@
+tssupervisorupdate (1.1.4-2) UNRELEASED; urgency=medium
+
+  [ Mark Featherston ]
+  * Initial commit
+  * initial commit of tssupervisorupdate
+  * tssupervisorupdate: Migrated away from directly using the packed struct from the read back data due to toolchain differences, and changed to manually reading out offsets from the file.  Fixed segfault from bad initialization.  Set default i2c bus/chip for the 7970.
+  * README.md: fixed example instructions for the 7970
+  * Clean up clutter in single .c file.
+  * clang-format
+  * Add TS-9370 support
+  * update-v1: Fix dirty bit info output
+  * tssupervisorupdate: return to skip the update if it is not required
+  * update-shared: Moved common update code between v0/v1 to update-shared
+  * update-v0: Remove retry code. This should no longer be needed, but can be moved to the calling code to be common if needed.
+  * updated-shared: Added common update definitions and calls
+
+  [ Kris Bahnsen ]
+  * tssupervisorupdate: run clang-format
+  * micro: normalize return values of stream_read/write()
+  * update-v0: fixups
+  * tssupervisorupdate: add --version flag
+  * update-v1: fixups
+  * tssupervisorupdate: add min_rev variable
+  * tssupervisorupdate: remove use of exit/error in whole project
+  * tssupervisorupdate: bump to v1.1.0
+
+  [ Mark Featherston ]
+  * tssupervisorupdate: Add legacy TS-7970 kernel compatibility
+
+  [ Kris Bahnsen ]
+  * tssupervisorupdate: fix kernel compat strings for legacy kernels
+
+  [ Lionel D. Hummel ]
+  * Add TS-9390 and TS-4300 support
+  * tssupervisorupdate: Add compatible_id to support multi-board images
+  * Add a .gitignore file
+  * tssupervisorupdate: bump to v1.1.4
+  * Fix accidental spaces-instead-of-tabs
+
+ -- Mark Featherston <mark@embeddedts.com>  Sat, 14 Jun 2025 20:02:40 +0000
+
+tssupervisorupdate (1.1.4-1) unstable; urgency=medium
+
+  * Automatic build from Git.
+
+ -- Mark Featherston <mark@embeddedts.com>  Sat, 14 Jun 2025 10:00:00 -0600
