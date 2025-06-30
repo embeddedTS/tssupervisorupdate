@@ -1,0 +1,18 @@
+Source: tssupervisorupdate
+Section: utils
+Priority: optional
+Maintainer: Mark Featherston <mark@embeddedts.com>
+Build-Depends:
+ debhelper-compat (= 14),
+ meson (>= 0.63),
+ ninja-build,
+ pkg-config
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+
+Package: tssupervisorupdate
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Supervisor firmware update utility for TS boards
+ Small command-line tool that updates supervisor firmware and related
+ micro-controllers on EmbeddedTS single-board computers.
