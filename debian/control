@@ -1,0 +1,12 @@
+Source: tssupervisorupdate
+Section: utils
+Priority: optional
+Maintainer: embeddedTS <support@embeddedts.com>
+Build-Depends: debhelper-compat (= 13), meson, ninja-build
+Standards-Version: 4.6.2
+
+Package: tssupervisorupdate
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Supervisory microcontroller firmware updater
+ Utility to update supervisory microcontrollers on embeddedTS products
