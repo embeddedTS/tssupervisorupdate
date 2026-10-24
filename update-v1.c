@@ -78,17 +78,16 @@ struct micro_update_footer_v1 {
 	uint8_t magic[11];
 } __attribute__((packed));
 
-#define FTR_V1_SZ (22U)
+#define FTR_V1_SZ sizeof(struct micro_update_footer_v1)
 int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 {
-	uint8_t data[FTR_V1_SZ];
 	off_t full_size;
 	int ret;
 
 	full_size = lseek(binfd, 0, SEEK_END);
 	lseek(binfd, (full_size - FTR_V1_SZ), SEEK_SET);
 
-	ret = read(binfd, &data, FTR_V1_SZ);
+	ret = read(binfd, ftr, FTR_V1_SZ);
 	if (ret < 0) {
 		perror("Unable to read footer");
 		goto err_out;
@@ -98,15 +97,7 @@ int micro_update_parse_footer_v1(int binfd, struct micro_update_footer_v1 *ftr)
 		goto err_out;
 	}
 
-	memcpy(&ftr->bin_size, &data[0], 4);
-	memcpy(&ftr->model, &data[4], 2);
-	memcpy(&ftr->revision, &data[6], 2);
-	ftr->flags = data[8];
-	ftr->misc = data[9];
-	ftr->footer_version = data[10];
-	memcpy(&ftr->magic, &data[11], 11);
-
-	if (strncmp("TS_UC_RA4M2", (char *)&ftr->magic, 11) != 0) {
+	if (strncmp("TS_UC_RA4M2", (char *)ftr->magic, 11) != 0) {
 		fprintf(stderr, "Invalid update file\n");
 		goto err_out;
 	}
@@ -155,7 +146,7 @@ int do_v1_micro_print_info(board_t *board, int i2cfd)
 	printf("modelnum=0x%04X\n", modelnum);
 	if (board->compatible_id && (board->compatible_id != modelnum))
 		printf("compatible=0x%04X\n", board->compatible_id);
-	printf("revision=%d\n", revision & 0x7fff);
+	printf("revision=0x%04X\n", revision & 0x7fff);
 	printf("dirty=%d\n", !!(revision & (1 << 15)));
 	return 0;
 }
